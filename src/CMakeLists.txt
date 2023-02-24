@@ -5,13 +5,18 @@ cmake_minimum_required(VERSION 3.10)
 
 project(dart_api_test_library VERSION 0.0.1 LANGUAGES C)
 
-add_library(dart_api_test SHARED
-  "dart_api_test.c"
+add_library(
+  dart_api_test SHARED
+  "dart_api/dart_api_dl.c"
 )
 
-set_target_properties(dart_api_test PROPERTIES
-  PUBLIC_HEADER dart_api_test.h
+set_target_properties(
+  dart_api_test PROPERTIES
+  PUBLIC_HEADER dart_api_dl.h
   OUTPUT_NAME "dart_api_test"
 )
 
-target_compile_definitions(dart_api_test PUBLIC DART_SHARED_LIB)
+target_compile_definitions(
+  dart_api_test
+  PUBLIC DART_SHARED_LIB
+)

@@ -1,11 +1,16 @@
-import 'package:flutter/material.dart';
-import 'dart:async';
+// ignore_for_file: non_constant_identifier_names, unused_local_variable
 
-import 'package:dart_api_test/dart_api_test.dart' as dart_api_test;
+import 'dart:io';
+import 'dart:ffi';
+import 'package:flutter/material.dart';
+
+const lib = 'dart_api_test';
 
 void main() {
   runApp(const MyApp());
 }
+
+class Isolate extends Opaque {}
 
 class MyApp extends StatefulWidget {
   const MyApp({super.key});
@@ -15,59 +20,51 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  late int sumResult;
-  late Future<int> sumAsyncResult;
-
   @override
   void initState() {
     super.initState();
-    sumResult = dart_api_test.sum(1, 2);
-    sumAsyncResult = dart_api_test.sumAsync(3, 4);
+    final dylib = () {
+      if (Platform.isMacOS || Platform.isIOS) {
+        return DynamicLibrary.open('$lib.framework/$lib');
+      }
+      if (Platform.isAndroid || Platform.isLinux) {
+        return DynamicLibrary.open('lib$lib.so');
+      }
+      if (Platform.isWindows) {
+        return DynamicLibrary.open('$lib.dll');
+      }
+      throw UnsupportedError('Unknown platform: ${Platform.operatingSystem}');
+    }();
+
+    final Dart_InitializeApiDL = dylib.lookupFunction<
+        Int32 Function(Pointer<Void>), int Function(Pointer<Void>)>(
+      'Dart_InitializeApiDL',
+    );
+    final Dart_CurrentIsolate_DL = dylib.lookupFunction<
+        Pointer<Isolate> Function(), Pointer<Isolate> Function()>(
+      'Dart_CurrentIsolate_DL',
+    );
+    final Dart_EnterIsolate_DL = dylib.lookupFunction<
+        Int32 Function(Pointer<Isolate>), int Function(Pointer<Isolate>)>(
+      'Dart_EnterIsolate_DL',
+    );
+    final Dart_ExitIsolate_DL =
+        dylib.lookupFunction<Int32 Function(), int Function()>(
+      'Dart_ExitIsolate_DL',
+    );
+
+    Dart_InitializeApiDL(NativeApi.initializeApiDLData);
+    Dart_CurrentIsolate_DL();
   }
 
   @override
   Widget build(BuildContext context) {
-    const textStyle = TextStyle(fontSize: 25);
-    const spacerSmall = SizedBox(height: 10);
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
           title: const Text('Native Packages'),
         ),
-        body: SingleChildScrollView(
-          child: Container(
-            padding: const EdgeInsets.all(10),
-            child: Column(
-              children: [
-                const Text(
-                  'This calls a native function through FFI that is shipped as source in the package. '
-                  'The native code is built as part of the Flutter Runner build.',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                Text(
-                  'sum(1, 2) = $sumResult',
-                  style: textStyle,
-                  textAlign: TextAlign.center,
-                ),
-                spacerSmall,
-                FutureBuilder<int>(
-                  future: sumAsyncResult,
-                  builder: (BuildContext context, AsyncSnapshot<int> value) {
-                    final displayValue =
-                        (value.hasData) ? value.data : 'loading';
-                    return Text(
-                      'await sumAsync(3, 4) = $displayValue',
-                      style: textStyle,
-                      textAlign: TextAlign.center,
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ),
+        body: const Center(),
       ),
     );
   }
